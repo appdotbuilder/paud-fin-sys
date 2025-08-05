@@ -1,20 +1,33 @@
 
+import { db } from '../db';
+import { expensesTable } from '../db/schema';
 import { type CreateExpenseInput, type Expense } from '../schema';
 
-export async function createExpense(input: CreateExpenseInput): Promise<Expense> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is recording an expense for the institution
-    // Should validate admin permissions and persist expense record
-    return Promise.resolve({
-        id: 1,
+export const createExpense = async (input: CreateExpenseInput): Promise<Expense> => {
+  try {
+    // Insert expense record
+    const result = await db.insert(expensesTable)
+      .values({
         category: input.category,
         title: input.title,
         description: input.description || null,
-        amount: input.amount,
-        expense_date: input.expense_date,
+        amount: input.amount.toString(), // Convert number to string for numeric column
+        expense_date: input.expense_date.toISOString().split('T')[0], // Convert Date to YYYY-MM-DD string for date column
         receipt_url: input.receipt_url || null,
-        created_by: input.created_by,
-        created_at: new Date(),
-        updated_at: new Date()
-    });
-}
+        created_by: input.created_by
+      })
+      .returning()
+      .execute();
+
+    // Convert numeric and date fields back to proper types before returning
+    const expense = result[0];
+    return {
+      ...expense,
+      amount: parseFloat(expense.amount), // Convert string back to number
+      expense_date: new Date(expense.expense_date) // Convert string back to Date
+    };
+  } catch (error) {
+    console.error('Expense creation failed:', error);
+    throw error;
+  }
+};
